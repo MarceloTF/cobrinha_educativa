@@ -19,6 +19,7 @@ export const GerenciadorTelemetria = {
     this.totalErros = 0;
 
     try {
+      console.log('📡 [Firebase] Tentando registrar sessão...', { modoJogo, direcaoOrdem });
       this.referenciaSessao = await addDoc(collection(bancoDados, 'telemetry_sessions'), {
         user_id: this.idUsuario,
         session_id: this.idSessao,
@@ -30,8 +31,9 @@ export const GerenciadorTelemetria = {
         completed_phases: this.fasesConcluidas,
         total_errors: this.totalErros
       });
+      console.log('✅ [Firebase] Sessão registrada com sucesso! ID:', this.referenciaSessao.id);
     } catch (e) {
-      console.warn('Não foi possível registrar a sessão no banco:', e);
+      console.error('❌ [Firebase] Erro ao registrar sessão:', e);
     }
   },
 
@@ -55,8 +57,9 @@ export const GerenciadorTelemetria = {
         total_errors: this.totalErros,
         last_updated: serverTimestamp()
       });
+      console.log('✅ [Firebase] Métricas da sessão atualizadas.');
     } catch (e) {
-      console.warn('Não foi possível atualizar métricas da sessão:', e);
+      console.error('❌ [Firebase] Erro ao atualizar sessão:', e);
     }
   },
 
@@ -65,18 +68,21 @@ export const GerenciadorTelemetria = {
     if (!this.idUsuario) {
       this.idUsuario = obterOuCriarIdJogador();
     }
-    if (!this.idSessao) return;
+    if (!this.idSessao) {
+      this.idSessao = 'sess_' + Date.now();
+    }
 
     try {
-      await addDoc(collection(bancoDados, 'telemetry_events'), {
+      const docRef = await addDoc(collection(bancoDados, 'telemetry_events'), {
         user_id: this.idUsuario,
         session_id: this.idSessao,
         timestamp: serverTimestamp(),
         event_type: tipoEvento,
         ...dados
       });
+      console.log(`✅ [Firebase] Evento gravado: ${tipoEvento} (Doc: ${docRef.id})`);
     } catch (e) {
-      console.warn('Não foi possível gravar o evento no banco:', e);
+      console.error(`❌ [Firebase] Erro ao gravar evento ${tipoEvento}:`, e);
     }
   },
 
