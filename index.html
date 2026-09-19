@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Cobrinha Educativa - Jogo 2D Pedagógico</title>
+    <meta name="description" content="Jogo educativo 2D da Cobrinha com menus interativos de Números (1 a 10) e Alfabeto (A a Z) em ordem crescente/decrescente, ordenação com cores do arco-íris e quizzes pedagógicos adaptados." />
+    <meta property="og:title" content="Cobrinha Educativa - Jogo 2D Pedagógico" />
+    <meta property="og:description" content="Jogo educativo 2D da Cobrinha com menus interativos de Números (1 a 10) e Alfabeto (A a Z) em ordem crescente/decrescente, ordenação com cores do arco-íris e quizzes pedagógicos adaptados." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts para tipografia amigável e legível para crianças -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Folha de Estilos Customizada do Jogo -->
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- PixiJS v7 via CDN oficial -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
+  </head>
+  <body>
+    <!-- Container Principal Fullscreen -->
+    <main class="game-wrapper" id="game-app">
+      <!-- Cabeçalho e Painel de Informações (HUD) -->
+      <header class="game-header">
+        <div class="header-top">
+          <div class="title-group">
+            <h1 class="game-title">
+              <span class="title-icon">🐍</span> Cobrinha Educativa
+            </h1>
+          </div>
+          <div class="header-controls">
+            <button id="btn-metrics" class="btn-icon" aria-label="Métricas de Aprendizado" title="Métricas de Aprendizado (Desempenho)">📊</button>
+            <button id="btn-menu" class="btn-icon" aria-label="Menu Principal" title="Menu Principal (Escolher Modo)">🏠</button>
+            <button id="btn-pause" class="btn-icon" aria-label="Pausar jogo" title="Pausar jogo (ESC)">⏸️</button>
+            <button id="btn-sound" class="btn-icon" aria-label="Alternar som" title="Alternar som">🔊</button>
+            <button id="btn-reset" class="btn-icon" aria-label="Reiniciar fase atual" title="Reiniciar fase atual">🔄</button>
+          </div>
+        </div>
+
+        <!-- Painel de Status (HUD) -->
+        <div class="hud-panel" id="hud-panel">
+          <div class="badge phase-badge" id="phase-label">
+            Fase 1: Números (1 a 3)
+          </div>
+          <div class="badge target-badge" id="target-label">
+            Coma: <strong>1</strong>
+          </div>
+        </div>
+      </header>
+
+      <!-- Área de Renderização do PixiJS com Overlays -->
+      <section class="canvas-wrapper" id="canvas-section">
+        <!-- Aviso de início: aguardando primeiro comando do jogador -->
+        <div id="start-prompt" class="start-prompt hidden">
+          <span class="prompt-icon">🎮</span>
+          <span class="prompt-text">Toque nas setas, deslize o dedo ou use o teclado para começar!</span>
+        </div>
+
+        <!-- Notificação de Alerta Flutuante (Erros de colisão ou ordem incorreta) -->
+        <div id="alert-toast" class="alert-toast" role="alert" aria-live="polite"></div>
+
+        <!-- Container onde o PixiJS injeta o Canvas 2D -->
+        <div id="game-canvas-container"></div>
+
+        <!-- Menu Inicial (escolha de modo e ordenação) -->
+        <div id="menu-overlay" class="overlay" role="dialog" aria-modal="true">
+          <div class="modal-card menu-card">
+            <!-- Passo 1: Escolha EXCLUSIVA entre Números e Alfabeto -->
+            <div id="menu-step-mode" class="menu-step">
+              <div class="menu-header">
+                <span class="menu-logo">🐍</span>
+                <h2 class="menu-title">Cobrinha Educativa</h2>
+                <p class="menu-subtitle">O que você quer praticar hoje?</p>
+              </div>
+
+              <div class="menu-grid">
+                <button id="btn-choose-numbers" class="menu-choice-btn mode-numbers" aria-label="Escolher Modo Números">
+                  <span class="choice-icon">🔢</span>
+                  <div class="choice-info">
+                    <span class="choice-title">Modo Números</span>
+                    <span class="choice-desc">Aprenda a contar de 1 a 10</span>
+                  </div>
+                  <span class="choice-arrow">➜</span>
+                </button>
+
+                <button id="btn-choose-letters" class="menu-choice-btn mode-letters" aria-label="Escolher Modo Alfabeto">
+                  <span class="choice-icon">🔤</span>
+                  <div class="choice-info">
+                    <span class="choice-title">Modo Alfabeto</span>
+                    <span class="choice-desc">Aprenda as letras de A a Z</span>
+                  </div>
+                  <span class="choice-arrow">➜</span>
+                </button>
+              </div>
+
+              <div style="text-align: center; margin-top: 1.5rem;">
+                <button id="btn-open-options" class="action-btn secondary-btn" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+                  <span>⚙️</span> Opções e Ajustes
+                </button>
+              </div>
+
+              <div class="edge-warning" style="margin-top: 1.5rem; font-size: 0.9rem; color: #facc15; background: rgba(0,0,0,0.6); padding: 0.75rem; border-radius: 8px; text-align: center; border: 1px solid #ca8a04;">
+                💡 <strong>Dica de Áudio:</strong> Para a melhor qualidade da voz de professora, recomendamos jogar no <strong>Microsoft Edge</strong>.
+              </div>
+            </div>
+
+            <!-- Passo 2: Escolha de Ordem (aparece SOMENTE após selecionar Números ou Alfabeto) -->
+            <div id="menu-step-order" class="menu-step hidden">
+              <div class="menu-header">
+                <div class="modal-header-badge" id="selected-mode-badge">
+                  🔢 Modo Números
+                </div>
+                <h2 class="menu-title" id="order-step-title">Como você quer a ordem?</h2>
+                <p class="menu-subtitle" id="order-step-subtitle">Toque na opção desejada para começar o jogo:</p>
+              </div>
+
+              <div class="menu-grid">
+                <button id="btn-order-crescent" class="menu-choice-btn order-crescent" aria-label="Ordem Crescente">
+                  <span class="choice-icon">📈</span>
+                  <div class="choice-info">
+                    <span class="choice-title" id="order-crescent-title">Ordem Crescente</span>
+                    <span class="choice-desc" id="order-crescent-desc">Do menor para o maior (1, 2, 3...)</span>
+                  </div>
+                  <span class="choice-arrow">▶</span>
+                </button>
+
+                <button id="btn-order-decrescent" class="menu-choice-btn order-decrescent" aria-label="Ordem Decrescente">
+                  <span class="choice-icon">📉</span>
+                  <div class="choice-info">
+                    <span class="choice-title" id="order-decrescent-title">Ordem Decrescente</span>
+                    <span class="choice-desc" id="order-decrescent-desc">Do maior para o menor (...3, 2, 1)</span>
+                  </div>
+                  <span class="choice-arrow">▶</span>
+                </button>
+              </div>
+
+              <!-- Faixa Educativa: Ordem das cores do Arco-Íris -->
+              <div class="rainbow-guide-card">
+                <div class="rainbow-guide-title">
+                  <span>🌈</span> As bolinhas seguem as cores do arco-íris:
+                </div>
+                <div class="rainbow-dots-list">
+                  <span class="rainbow-chip" style="background:#ef4444;">Vermelho</span>
+                  <span class="rainbow-chip" style="background:#f97316;">Laranja</span>
+                  <span class="rainbow-chip" style="background:#eab308; color:#0f172a;">Amarelo</span>
+                  <span class="rainbow-chip" style="background:#22c55e;">Verde</span>
+                  <span class="rainbow-chip" style="background:#0ea5e9;">Azul</span>
+                  <span class="rainbow-chip" style="background:#4338ca;">Anil</span>
+                  <span class="rainbow-chip" style="background:#8b5cf6;">Violeta</span>
+                </div>
+              </div>
+
+              <div class="menu-actions">
+                <button id="btn-back-to-mode" class="btn-secondary" aria-label="Voltar para escolher outro modo">
+                  ⬅ Voltar e trocar de modo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tela de Pausa -->
+        <div id="pause-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+          <div class="modal-card">
+            <div class="pause-icon">⏸️</div>
+            <h2 class="modal-title">Jogo Pausado</h2>
+            <p class="modal-desc">
+              Pressione a tecla <strong>ESC</strong> ou utilize as opções abaixo:
+            </p>
+            <div class="modal-buttons-column">
+              <button id="btn-resume-game" class="btn-primary">
+                Continuar Jogando ▶️
+              </button>
+              <button id="btn-restart-phase" class="btn-secondary">
+                Reiniciar Esta Fase 🔄
+              </button>
+              <button id="btn-pause-metrics" class="btn-secondary">
+                Métricas de Aprendizado 📊
+              </button>
+              <button id="btn-pause-menu" class="btn-outline">
+                Menu Principal 🏠
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desafio / Quiz ao fim da fase -->
+        <div id="quiz-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quiz-question-text">
+          <div class="modal-card quiz-card">
+            <div class="quiz-top-row">
+              <div class="modal-header-badge" id="quiz-badge">
+                <span id="quiz-badge-icon">🎓</span> <span id="quiz-badge-text">Desafio da Fase</span>
+              </div>
+              <button id="btn-quiz-audio" class="btn-quiz-audio" aria-label="Ouvir a pergunta em voz alta" title="Ouvir a pergunta em áudio">
+                <span class="audio-btn-icon">🔊</span>
+                <span class="audio-btn-label">Ouvir Pergunta</span>
+              </button>
+            </div>
+            
+            <h2 id="quiz-question-text" class="quiz-question">
+              Pergunta pedagógica
+            </h2>
+
+            <!-- Botões coloridos de opções de resposta (sem letras A, B, C para não confundir crianças) -->
+            <div class="quiz-options">
+              <button class="quiz-btn opt-blue" data-opt-idx="0" id="quiz-opt-0" aria-label="Opção 1">
+                <span class="option-star">⭐</span>
+                <span class="option-text" id="quiz-opt-text-0">-</span>
+              </button>
+
+              <button class="quiz-btn opt-green" data-opt-idx="1" id="quiz-opt-1" aria-label="Opção 2">
+                <span class="option-star">🌟</span>
+                <span class="option-text" id="quiz-opt-text-1">-</span>
+              </button>
+
+              <button class="quiz-btn opt-amber" data-opt-idx="2" id="quiz-opt-2" aria-label="Opção 3">
+                <span class="option-star">✨</span>
+                <span class="option-text" id="quiz-opt-text-2">-</span>
+              </button>
+            </div>
+
+            <!-- Área de feedback dinâmico -->
+            <div id="quiz-feedback" class="quiz-feedback" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- Tela de Vitória Final -->
+        <div id="victory-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+          <div class="modal-card">
+            <div class="victory-icon">🏆</div>
+            <h2 class="victory-title" id="victory-title">Sensacional! Você Venceu!</h2>
+            <p class="victory-desc" id="victory-desc">
+              Você completou com louvor todas as fases e dominou a ordenação e as 7 cores do arco-íris!
+            </p>
+            <div class="modal-buttons-column">
+              <button id="btn-restart-game" class="btn-restart-game">
+                Jogar Novamente Este Modo 🎮
+              </button>
+              <button id="btn-victory-menu" class="btn-secondary">
+                Menu Principal 🏠
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Painel de Métricas e Desempenho -->
+        <div id="metrics-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="metrics-title">
+          <div class="modal-card metrics-card">
+            <div class="metrics-header-row">
+              <div class="metrics-badge">📊 Painel Pedagógico</div>
+              <button id="btn-close-metrics" class="btn-close-modal" aria-label="Fechar métricas">✖</button>
+            </div>
+
+            <h2 id="metrics-title" class="modal-title">Métricas de Aprendizado</h2>
+            <p class="modal-desc">
+              Acompanhe quantas vezes o jogador erra até avançar e o domínio dos números e alfabeto:
+            </p>
+
+            <!-- Cards de resumo rápido -->
+            <div class="metrics-summary-grid">
+              <div class="metric-card-box">
+                <span class="metric-icon">⭐</span>
+                <span class="metric-value" id="metric-first-try">0 / 0</span>
+                <span class="metric-label">Acertos de Primeira</span>
+              </div>
+              <div class="metric-card-box">
+                <span class="metric-icon">🔄</span>
+                <span class="metric-value" id="metric-avg-attempts">0</span>
+                <span class="metric-label">Tentativas Médias / Fase</span>
+              </div>
+              <div class="metric-card-box">
+                <span class="metric-icon">✅</span>
+                <span class="metric-value" id="metric-total-correct">0</span>
+                <span class="metric-label">Total de Acertos</span>
+              </div>
+              <div class="metric-card-box">
+                <span class="metric-icon">❌</span>
+                <span class="metric-value" id="metric-total-wrong">0</span>
+                <span class="metric-label">Total de Erros</span>
+              </div>
+            </div>
+
+            <!-- Lista detalhada por fase -->
+            <div class="metrics-detail-section">
+              <h3 class="metrics-subheading">Histórico por Fase nesta Sessão</h3>
+              <div class="phase-metrics-list" id="phase-metrics-list">
+                <!-- Preenchido dinamicamente via JS -->
+              </div>
+            </div>
+
+            <div class="modal-buttons-column" style="margin-top: 14px;">
+              <button id="btn-return-from-metrics" class="btn-primary">
+                Voltar ao Jogo ▶️
+              </button>
+              <button id="btn-reset-metrics" class="btn-outline btn-sm">
+                Zerar Métricas de Aprendizado 🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- Modal de Opções e Ajustes -->
+        <div id="options-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+          <div class="modal-card">
+            <div class="menu-header">
+              <span class="menu-logo">⚙️</span>
+              <h2 class="menu-title">Opções e Ajustes</h2>
+            </div>
+
+            <div class="options-group" style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #1e293b;">Tamanho do Tabuleiro</h3>
+              <div class="radio-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="radio" name="gridSize" value="20" style="width: 1.2rem; height: 1.2rem;">
+                  <span style="font-size: 1rem;">20x20 (Máx. 5 bolinhas)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="radio" name="gridSize" value="10" checked style="width: 1.2rem; height: 1.2rem;">
+                  <span style="font-size: 1rem;">10x10 (Máx. 3 bolinhas)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="options-group" style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #1e293b;">Velocidade da Cobrinha</h3>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <input type="range" id="speed-slider" min="1" max="3" value="1" step="1" style="width: 100%; accent-color: #3b82f6;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b;">
+                  <span>Lenta (Fácil)</span>
+                  <span>Média</span>
+                  <span>Rápida</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="options-group" style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #1e293b;">Voz de Orientação</h3>
+              <div class="radio-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="radio" name="voiceGender" value="female" checked style="width: 1.2rem; height: 1.2rem;">
+                  <span style="font-size: 1rem;">Professora (Feminina)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="radio" name="voiceGender" value="male" style="width: 1.2rem; height: 1.2rem;">
+                  <span style="font-size: 1rem;">Professor (Masculina)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-buttons-column" style="margin-top: 14px;">
+              <button id="btn-save-options" class="action-btn primary-btn">
+                Salvar e Voltar ▶️
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Seção de Controles Virtuais (D-pad Touch) com botão para fechar [X] -->
+      <footer class="controls-section" id="controls-section">
+        <button id="btn-close-dpad" class="btn-close-dpad" aria-label="Ocultar botões direcionais" title="Ocultar controles virtuais">✖</button>
+
+        <div class="dpad" id="virtual-dpad" aria-label="Controles direcionais virtuais">
+          <button id="btn-up" class="dpad-btn dpad-up" aria-label="Mover para cima">▲</button>
+          <button id="btn-left" class="dpad-btn dpad-left" aria-label="Mover para a esquerda">◀</button>
+          <div class="dpad-center"></div>
+          <button id="btn-right" class="dpad-btn dpad-right" aria-label="Mover para a direita">▶</button>
+          <button id="btn-down" class="dpad-btn dpad-down" aria-label="Mover para baixo">▼</button>
+        </div>
+        <p class="keyboard-hint">💡 Use as <strong>setas do teclado</strong>, <strong>W A S D</strong>, <strong>ESC para pausar</strong> ou <strong>deslize o dedo</strong> na tela.</p>
+      </footer>
+
+      <!-- Botão flutuante para reabrir os controles se o jogador os tiver fechado -->
+      <button id="btn-show-dpad" class="btn-floating-dpad hidden" aria-label="Abrir controles virtuais" title="Abrir controles virtuais">
+        🎮 Controles
+      </button>
+    </main>
+
+    <!-- Código principal do jogo em JavaScript ES6 puro -->
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
