@@ -1,6 +1,6 @@
 // Configuração do Firebase para salvar as estatísticas e métricas do jogo
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 const configuracaoFirebase = {
   apiKey: "AIzaSyAJrkEinErQNjULV-sJuLVeI-VQjmP60F4",
