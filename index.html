@@ -9,7 +9,7 @@
     <meta property="og:description" content="Jogo educativo 2D da Cobrinha com menus interativos de Números (1 a 10) e Alfabeto (A a Z) em ordem crescente/decrescente, ordenação com cores do arco-íris e quizzes pedagógicos adaptados." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>">
+
     <!-- Google Fonts para tipografia amigável e legível para crianças -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,8 +24,8 @@
   <body>
     <!-- Container Principal Fullscreen -->
     <main class="game-wrapper" id="game-app">
-      <!-- Cabeçalho e Painel de Informações (HUD) -->
-      <header class="game-header">
+      <!-- Cabeçalho e Painel de Informações (HUD) - Oculto no menu inicial, exibido somente ao iniciar o jogo -->
+      <header class="game-header hidden" id="game-header">
         <div class="header-top">
           <div class="title-group">
             <h1 class="game-title">
@@ -63,6 +63,16 @@
         <!-- Notificação de Alerta Flutuante (Erros de colisão ou ordem incorreta) -->
         <div id="alert-toast" class="alert-toast" role="alert" aria-live="polite"></div>
 
+        <!-- Botão Flutuante no Canto Superior Direito: Entrar em Tela Cheia -->
+        <button id="btn-fullscreen" class="btn-floating-fullscreen" aria-label="Tela Cheia" title="Entrar em Tela Cheia">
+          <span>⛶</span> Tela Cheia
+        </button>
+
+        <!-- Botão Flutuante no Canto Superior Direito: Sair da Tela Cheia -->
+        <button id="btn-exit-fullscreen" class="btn-floating-fullscreen btn-floating-exit-fullscreen hidden" aria-label="Sair da Tela Cheia" title="Sair da Tela Cheia">
+          <span>🗗</span> Sair da Tela Cheia
+        </button>
+
         <!-- Container onde o PixiJS injeta o Canvas 2D -->
         <div id="game-canvas-container"></div>
 
@@ -95,15 +105,18 @@
                   </div>
                   <span class="choice-arrow">➜</span>
                 </button>
-              </div>
 
-              <div style="text-align: center; margin-top: 1.5rem;">
-                <button id="btn-open-options" class="action-btn secondary-btn" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
-                  <span>⚙️</span> Opções e Ajustes
+                <button id="btn-open-options" class="menu-choice-btn mode-options" aria-label="Opções e Ajustes">
+                  <span class="choice-icon">⚙️</span>
+                  <div class="choice-info">
+                    <span class="choice-title">Opções e Ajustes</span>
+                    <span class="choice-desc">Tamanho do tabuleiro, velocidade, setas e voz</span>
+                  </div>
+                  <span class="choice-arrow">➜</span>
                 </button>
               </div>
 
-              <div class="edge-warning" style="margin-top: 1.5rem; font-size: 0.9rem; color: #facc15; background: rgba(0,0,0,0.6); padding: 0.75rem; border-radius: 8px; text-align: center; border: 1px solid #ca8a04;">
+              <div class="edge-warning" style="margin-top: 0.5rem; font-size: 0.78rem; color: #facc15; background: rgba(0,0,0,0.6); padding: 0.45rem 0.75rem; border-radius: 8px; text-align: center; border: 1px solid #ca8a04; line-height: 1.25;">
                 💡 <strong>Dica de Áudio:</strong> Para a melhor qualidade da voz de professora, recomendamos jogar no <strong>Microsoft Edge</strong>.
               </div>
             </div>
@@ -304,31 +317,31 @@
         </div>
         <!-- Modal de Opções e Ajustes -->
         <div id="options-overlay" class="overlay hidden" role="dialog" aria-modal="true">
-          <div class="modal-card">
-            <div class="menu-header">
-              <span class="menu-logo">⚙️</span>
-              <h2 class="menu-title">Opções e Ajustes</h2>
+          <div class="modal-card" style="max-width: 410px; padding: clamp(10px, 2vh, 16px) clamp(12px, 2.5vw, 18px);">
+            <div class="menu-header" style="margin-bottom: clamp(6px, 1.4vh, 10px);">
+              <span class="menu-logo" style="font-size: clamp(1.6rem, 3.2vh, 2.2rem); margin-bottom: 2px;">⚙️</span>
+              <h2 class="menu-title" style="font-size: clamp(1.15rem, 2.4vh, 1.3rem); margin: 0;">Opções e Ajustes</h2>
             </div>
 
-            <div class="options-group" style="margin-bottom: 1.5rem;">
-              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #1e293b;">Tamanho do Tabuleiro</h3>
-              <div class="radio-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                  <input type="radio" name="gridSize" value="20" style="width: 1.2rem; height: 1.2rem;">
-                  <span style="font-size: 1rem;">20x20 (Máx. 5 bolinhas)</span>
+            <div class="options-group" style="margin-bottom: clamp(6px, 1.4vh, 10px);">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.3rem; color: #1e293b;">Tamanho do Tabuleiro</h3>
+              <div class="radio-group" style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                  <input type="radio" name="gridSize" value="20" style="width: 1.1rem; height: 1.1rem;">
+                  <span style="font-size: 0.88rem;">20x20 (Máx. 5 bolinhas)</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                  <input type="radio" name="gridSize" value="10" checked style="width: 1.2rem; height: 1.2rem;">
-                  <span style="font-size: 1rem;">10x10 (Máx. 3 bolinhas)</span>
+                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                  <input type="radio" name="gridSize" value="10" checked style="width: 1.1rem; height: 1.1rem;">
+                  <span style="font-size: 0.88rem;">10x10 (Máx. 3 bolinhas)</span>
                 </label>
               </div>
             </div>
 
-            <div class="options-group" style="margin-bottom: 1.5rem;">
-              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #1e293b;">Velocidade da Cobrinha</h3>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="options-group" style="margin-bottom: clamp(6px, 1.4vh, 10px);">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.3rem; color: #1e293b;">Velocidade da Cobrinha</h3>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
                 <input type="range" id="speed-slider" min="1" max="3" value="1" step="1" style="width: 100%; accent-color: #3b82f6;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b;">
                   <span>Lenta (Fácil)</span>
                   <span>Média</span>
                   <span>Rápida</span>
@@ -336,23 +349,40 @@
               </div>
             </div>
 
-            <div class="options-group" style="margin-bottom: 1.5rem;">
-              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #1e293b;">Voz de Orientação</h3>
-              <div class="radio-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                  <input type="radio" name="voiceGender" value="female" checked style="width: 1.2rem; height: 1.2rem;">
-                  <span style="font-size: 1rem;">Professora (Feminina)</span>
+            <div class="options-group" style="margin-bottom: clamp(6px, 1.4vh, 10px);">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.3rem; color: #1e293b;">Tamanho dos Botões (Setas)</h3>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <input type="range" id="dpad-size-slider" min="1" max="3" value="3" step="1" style="width: 100%; accent-color: #3b82f6;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #64748b;">
+                  <span>Pequeno</span>
+                  <span>Médio</span>
+                  <span style="font-weight: 700; color: #1d4ed8;">Grande (Padrão)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="options-group" style="margin-bottom: clamp(6px, 1.4vh, 10px);">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.3rem; color: #1e293b;">Voz de Orientação</h3>
+              <div class="radio-group" style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                  <input type="radio" name="voiceGender" value="female" checked style="width: 1.1rem; height: 1.1rem;">
+                  <span style="font-size: 0.88rem;">Professora (Feminina)</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                  <input type="radio" name="voiceGender" value="male" style="width: 1.2rem; height: 1.2rem;">
-                  <span style="font-size: 1rem;">Professor (Masculina)</span>
+                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                  <input type="radio" name="voiceGender" value="male" style="width: 1.1rem; height: 1.1rem;">
+                  <span style="font-size: 0.88rem;">Professor (Masculina)</span>
                 </label>
               </div>
             </div>
 
-            <div class="modal-buttons-column" style="margin-top: 14px;">
-              <button id="btn-save-options" class="action-btn primary-btn">
-                Salvar e Voltar ▶️
+            <div style="margin-top: clamp(8px, 1.5vh, 12px);">
+              <button id="btn-save-options" class="menu-choice-btn mode-save-options" aria-label="Salvar e Voltar">
+                <span class="choice-icon">💾</span>
+                <div class="choice-info">
+                  <span class="choice-title">Salvar e Voltar</span>
+                  <span class="choice-desc">Aplicar todas as preferências e voltar ao menu</span>
+                </div>
+                <span class="choice-arrow">✔</span>
               </button>
             </div>
           </div>
@@ -360,8 +390,8 @@
 
       </section>
 
-      <!-- Seção de Controles Virtuais (D-pad Touch) com botão para fechar [X] -->
-      <footer class="controls-section" id="controls-section">
+      <!-- Seção de Controles Virtuais (D-pad Touch) com botão para fechar [X] (oculto no menu inicial) -->
+      <footer class="controls-section hidden" id="controls-section">
         <button id="btn-close-dpad" class="btn-close-dpad" aria-label="Ocultar botões direcionais" title="Ocultar controles virtuais">✖</button>
 
         <div class="dpad" id="virtual-dpad" aria-label="Controles direcionais virtuais">

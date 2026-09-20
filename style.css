@@ -318,7 +318,7 @@ body {
   width: 100%;
   max-width: 440px;
   border-radius: var(--radius-lg);
-  padding: 22px 20px;
+  padding: 18px 18px;
   box-shadow: var(--shadow-modal);
   border: 4px solid #dbeafe;
   text-align: center;
@@ -331,50 +331,54 @@ body {
    MENU INICIAL (ESCOLHA DE NÚMEROS/ALFABETO E ORDEM CRESCENTE/DECRESCENTE)
    ========================================================================== */
 .menu-card {
-  max-width: 470px;
+  max-width: 410px;
   border-color: #c7d2fe;
+  padding: clamp(10px, 2.2vh, 16px) clamp(12px, 2.8vw, 18px);
+  overflow-y: visible;
+  max-height: 96vh;
 }
 
 .menu-header {
-  margin-bottom: 18px;
+  margin-bottom: clamp(6px, 1.6vh, 12px);
 }
 
 .menu-logo {
-  font-size: 3rem;
+  font-size: clamp(1.8rem, 3.8vh, 2.4rem);
   display: inline-block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  line-height: 1;
   animation: gentle-bounce 2s infinite ease;
 }
 
 .menu-title {
-  font-size: 1.55rem;
+  font-size: clamp(1.2rem, 2.6vh, 1.4rem);
   font-weight: 800;
   color: #1e3a8a;
-  margin: 0 0 6px 0;
+  margin: 0 0 3px 0;
 }
 
 .menu-subtitle {
-  font-size: 0.95rem;
+  font-size: clamp(0.78rem, 1.7vh, 0.88rem);
   color: #475569;
-  line-height: 1.4;
+  line-height: 1.3;
   margin: 0;
 }
 
 .menu-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: clamp(6px, 1.3vh, 10px);
+  margin-bottom: clamp(6px, 1.3vh, 10px);
 }
 
 .menu-choice-btn {
   background: #f8fafc;
-  border: 3px solid #cbd5e1;
+  border: 2px solid #cbd5e1;
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: clamp(7px, 1.4vh, 11px) clamp(10px, 2vw, 14px);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   cursor: pointer;
   text-align: left;
   transition: all 0.18s ease;
@@ -392,7 +396,7 @@ body {
 }
 
 .choice-icon {
-  font-size: 2.2rem;
+  font-size: clamp(1.4rem, 2.8vh, 1.8rem);
   flex-shrink: 0;
 }
 
@@ -400,23 +404,23 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .choice-title {
-  font-size: 1.2rem;
+  font-size: clamp(0.95rem, 2vh, 1.08rem);
   font-weight: 800;
   color: #0f172a;
 }
 
 .choice-desc {
-  font-size: 0.85rem;
+  font-size: clamp(0.72rem, 1.5vh, 0.8rem);
   color: #64748b;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .choice-arrow {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: bold;
   color: #94a3b8;
   transition: transform 0.18s ease;
@@ -476,37 +480,64 @@ body {
   color: #c2410c;
 }
 
+.mode-options {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.mode-options:hover {
+  background: #f1f5f9;
+  border-color: #64748b;
+}
+.mode-options .choice-title {
+  color: #334155;
+}
+
+.mode-save-options {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+.mode-save-options:hover {
+  background: #d1fae5;
+  border-color: #10b981;
+}
+.mode-save-options .choice-title {
+  color: #065f46;
+}
+.mode-save-options .choice-arrow {
+  color: #10b981;
+}
+
 /* Guia pedagógico das Cores do Arco-Íris no Menu */
 .rainbow-guide-card {
   background: #f8fafc;
   border: 2px dashed #cbd5e1;
   border-radius: var(--radius-md);
-  padding: 12px;
+  padding: clamp(6px, 1.2vh, 10px);
   text-align: center;
 }
 
 .rainbow-guide-title {
-  font-size: 0.88rem;
+  font-size: clamp(0.76rem, 1.6vh, 0.84rem);
   font-weight: 700;
   color: #334155;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .rainbow-dots-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   justify-content: center;
 }
 
 .rainbow-chip {
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 12px;
-  font-size: 0.76rem;
+  font-size: clamp(0.68rem, 1.4vh, 0.74rem);
   font-weight: 700;
   color: #ffffff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -515,7 +546,7 @@ body {
 .menu-actions {
   display: flex;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: clamp(6px, 1.2vh, 10px);
 }
 
 /* ==========================================================================
@@ -826,14 +857,91 @@ body {
   margin: 0;
 }
 
+/* Modo Tela Cheia */
+body.fullscreen-active .game-header {
+  display: none !important;
+}
+
+body.fullscreen-active .game-wrapper {
+  background: #0f172a;
+}
+
+.btn-floating-fullscreen {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 30;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-floating-fullscreen:hover {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  transform: translateY(-2px);
+}
+
+.btn-floating-exit-fullscreen {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.btn-floating-exit-fullscreen:hover {
+  background: #ef4444;
+  border-color: #f87171;
+  transform: translateY(-2px);
+}
+
+.btn-floating-fullscreen.hidden,
+.btn-floating-exit-fullscreen.hidden {
+  display: none !important;
+}
+
 .dpad {
   display: grid;
-  grid-template-columns: repeat(3, 54px);
-  grid-template-rows: repeat(3, 46px);
-  gap: 5px;
+  grid-template-columns: repeat(3, var(--dpad-btn-w, 70px));
+  grid-template-rows: repeat(3, var(--dpad-btn-h, 58px));
+  gap: 8px;
   justify-content: center;
   align-items: center;
   touch-action: manipulation;
+  transition: all 0.2s ease;
+}
+
+/* Tamanhos do D-pad configuráveis */
+/* Tamanho Grande (Padrão) */
+.controls-section,
+.controls-section.dpad-large {
+  --dpad-btn-w: 74px;
+  --dpad-btn-h: 62px;
+  --dpad-font-size: 1.7rem;
+}
+
+/* Tamanho Médio */
+.controls-section.dpad-medium {
+  --dpad-btn-w: 60px;
+  --dpad-btn-h: 50px;
+  --dpad-font-size: 1.4rem;
+}
+
+/* Tamanho Pequeno */
+.controls-section.dpad-small {
+  --dpad-btn-w: 48px;
+  --dpad-btn-h: 42px;
+  --dpad-font-size: 1.15rem;
 }
 
 .dpad-btn {
@@ -841,7 +949,7 @@ body {
   border: 2px solid #cbd5e1;
   border-radius: var(--radius-md);
   color: #1e293b;
-  font-size: 1.3rem;
+  font-size: var(--dpad-font-size, 1.7rem);
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -850,6 +958,8 @@ body {
   transition: all 0.1s ease;
   user-select: none;
   touch-action: manipulation;
+  width: 100%;
+  height: 100%;
 }
 
 .dpad-btn:hover {
@@ -953,11 +1063,68 @@ body {
   .hud-panel { padding: 4px 8px; }
   .badge { font-size: 0.76rem; padding: 3px 7px; }
   .keyboard-hint { display: none; }
-  .dpad { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 42px); gap: 4px; }
+  .controls-section.dpad-large {
+    --dpad-btn-w: 66px;
+    --dpad-btn-h: 56px;
+    --dpad-font-size: 1.55rem;
+  }
+  .controls-section.dpad-medium {
+    --dpad-btn-w: 54px;
+    --dpad-btn-h: 46px;
+    --dpad-font-size: 1.3rem;
+  }
+  .controls-section.dpad-small {
+    --dpad-btn-w: 44px;
+    --dpad-btn-h: 38px;
+    --dpad-font-size: 1.05rem;
+  }
   .modal-card { padding: 18px 14px; }
   .menu-title { font-size: 1.35rem; }
   .choice-title { font-size: 1.05rem; }
   .choice-icon { font-size: 1.8rem; }
+}
+
+@media (max-height: 640px) {
+  .menu-card {
+    padding: 8px 14px;
+    max-width: 380px;
+  }
+  .menu-header {
+    margin-bottom: 4px;
+  }
+  .menu-logo {
+    font-size: 1.5rem;
+    margin-bottom: 0;
+  }
+  .menu-title {
+    font-size: 1.05rem;
+    margin: 0;
+  }
+  .menu-subtitle {
+    font-size: 0.72rem;
+  }
+  .menu-grid {
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+  .menu-choice-btn {
+    padding: 5px 10px;
+    gap: 8px;
+  }
+  .choice-icon {
+    font-size: 1.3rem;
+  }
+  .choice-title {
+    font-size: 0.88rem;
+  }
+  .choice-desc {
+    font-size: 0.68rem;
+  }
+  .edge-warning {
+    margin-top: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 0.7rem !important;
+  }
 }
 
 /* ==========================================================================

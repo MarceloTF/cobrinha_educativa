@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   // Elementos da interface (DOM)
+  const gameHeader = document.getElementById('game-header');
   const canvasContainer = document.getElementById('game-canvas-container');
   const phaseLabel = document.getElementById('phase-label');
   const targetLabel = document.getElementById('target-label');
@@ -48,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Botões do cabeçalho
   const btnMenu = document.getElementById('btn-menu');
   const btnPause = document.getElementById('btn-pause');
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  const btnExitFullscreen = document.getElementById('btn-exit-fullscreen');
   const btnSound = document.getElementById('btn-sound');
   const btnReset = document.getElementById('btn-reset');
 
@@ -761,6 +764,19 @@ document.addEventListener('DOMContentLoaded', () => {
     quizOverlay.classList.add('hidden');
     victoryOverlay.classList.add('hidden');
 
+    // A barra superior só deve aparecer depois que o jogo começar (se não estiver em tela cheia)
+    if (gameHeader && !document.body.classList.contains('fullscreen-active')) {
+      gameHeader.classList.remove('hidden');
+    }
+
+    // As setas direcionais só devem aparecer quando o jogo de fato começar
+    if (controlsSection) {
+      controlsSection.classList.remove('hidden');
+    }
+    if (btnShowDpad) {
+      btnShowDpad.classList.add('hidden');
+    }
+
     iniciarCobra();
     gerarItensDaFase();
     renderizarCobra();
@@ -769,6 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nomeModo = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'Números' : 'Alfabeto';
     const nomeOrdem = (direcaoOrdemAtiva === DirecaoOrdem.CRESCENTE) ? 'Crescente' : 'Decrescente / Inversa';
     exibirNotificacao(`Fase ${indiceFase + 1} de ${obterTotalFases()}: Modo ${nomeModo} (${nomeOrdem})`, true);
+    setTimeout(ajustarDimensoesTela, 50);
   }
 
   function reiniciarFaseAtual(mensagemMotivo) {
@@ -1256,6 +1273,20 @@ document.addEventListener('DOMContentLoaded', () => {
     menuStepMode.classList.remove('hidden');
     menuStepOrder.classList.add('hidden');
     menuOverlay.classList.remove('hidden');
+
+    // A barra superior não deve aparecer por cima do menu inicial
+    if (gameHeader) {
+      gameHeader.classList.add('hidden');
+    }
+
+    // As setas direcionais nunca devem aparecer por cima do menu inicial
+    if (controlsSection) {
+      controlsSection.classList.add('hidden');
+    }
+    if (btnShowDpad) {
+      btnShowDpad.classList.add('hidden');
+    }
+    setTimeout(ajustarDimensoesTela, 50);
   }
 
   if (btnMenu) btnMenu.addEventListener('click', abrirMenuPrincipal);
@@ -1334,10 +1365,44 @@ document.addEventListener('DOMContentLoaded', () => {
   const optionsOverlay = document.getElementById('options-overlay');
   const gridSizeRadios = document.getElementsByName('gridSize');
   const speedSlider = document.getElementById('speed-slider');
+  const dpadSizeSlider = document.getElementById('dpad-size-slider');
   const voiceGenderRadios = document.getElementsByName('voiceGender');
+
+  // Tamanho do D-pad (1: pequeno, 2: médio, 3: grande [padrão])
+  let nivelTamanhoDpad = 3;
+
+  function aplicarTamanhoDpad(nivel) {
+    nivelTamanhoDpad = nivel;
+    if (!controlsSection) return;
+    controlsSection.classList.remove('dpad-small', 'dpad-medium', 'dpad-large');
+    if (nivel === 1) {
+      controlsSection.classList.add('dpad-small');
+    } else if (nivel === 2) {
+      controlsSection.classList.add('dpad-medium');
+    } else {
+      controlsSection.classList.add('dpad-large');
+    }
+    try {
+      localStorage.setItem('tamanho_dpad_cobrinha', String(nivel));
+    } catch (e) {}
+    setTimeout(ajustarDimensoesTela, 60);
+  }
+
+  // Carrega tamanho salvo ou mantém Grande (3) como padrão
+  try {
+    const tamanhoSalvo = localStorage.getItem('tamanho_dpad_cobrinha');
+    if (tamanhoSalvo) {
+      nivelTamanhoDpad = parseInt(tamanhoSalvo, 10) || 3;
+    }
+  } catch (e) {}
+  if (dpadSizeSlider) {
+    dpadSizeSlider.value = String(nivelTamanhoDpad);
+  }
+  aplicarTamanhoDpad(nivelTamanhoDpad);
 
   if (btnOpenOptions) {
     btnOpenOptions.addEventListener('click', () => {
+      if (dpadSizeSlider) dpadSizeSlider.value = String(nivelTamanhoDpad);
       optionsOverlay.classList.remove('hidden');
       menuStepMode.classList.add('hidden');
     });
@@ -1351,18 +1416,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       TAMANHO_GRADE = gradeSelecionada;
       maximoItensVisiveis = (TAMANHO_GRADE === 20) ? 5 : 3;
-      ajustarDimensoesTela();
 
       const valorVelocidade = parseInt(speedSlider.value, 10);
       if (valorVelocidade === 1) INTERVALO_MOVIMENTO_MS = 330;
       else if (valorVelocidade === 2) INTERVALO_MOVIMENTO_MS = 165;
       else if (valorVelocidade === 3) INTERVALO_MOVIMENTO_MS = 110;
 
+      if (dpadSizeSlider) {
+        const novoTamanhoDpad = parseInt(dpadSizeSlider.value, 10) || 3;
+        aplicarTamanhoDpad(novoTamanhoDpad);
+      }
+
       for (const radio of voiceGenderRadios) {
         if (radio.checked) generoVoz = radio.value;
       }
       carregarVozesEducadoras();
 
+      ajustarDimensoesTela();
       optionsOverlay.classList.add('hidden');
       menuStepMode.classList.remove('hidden');
     });
@@ -1619,6 +1689,133 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }, { passive: true });
+
+  // Gerenciamento de Tela Cheia (com ocultação do cabeçalho superior e botão de sair)
+  function entrarTelaCheia() {
+    document.body.classList.add('fullscreen-active');
+    if (btnFullscreen) {
+      btnFullscreen.classList.add('hidden');
+    }
+    if (btnExitFullscreen) {
+      btnExitFullscreen.classList.remove('hidden');
+    }
+
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(err => {
+        console.log('Fullscreen API não permitida ou rejeitada no iframe, usando modo CSS fullscreen:', err);
+      });
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen().catch?.(() => {});
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen().catch?.(() => {});
+    }
+
+    setTimeout(ajustarDimensoesTela, 100);
+    setTimeout(ajustarDimensoesTela, 300);
+  }
+
+  function sairTelaCheia() {
+    document.body.classList.remove('fullscreen-active');
+    if (btnFullscreen) {
+      btnFullscreen.classList.remove('hidden');
+    }
+    if (btnExitFullscreen) {
+      btnExitFullscreen.classList.add('hidden');
+    }
+    // Reexibe a barra superior somente se o jogo estiver em andamento (menu inicial fechado)
+    if (gameHeader && menuOverlay && menuOverlay.classList.contains('hidden')) {
+      gameHeader.classList.remove('hidden');
+    }
+
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen().catch?.(() => {});
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen().catch?.(() => {});
+      }
+    }
+
+    setTimeout(ajustarDimensoesTela, 100);
+    setTimeout(ajustarDimensoesTela, 300);
+  }
+
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', () => {
+      entrarTelaCheia();
+    });
+  }
+
+  if (btnExitFullscreen) {
+    btnExitFullscreen.addEventListener('click', () => {
+      sairTelaCheia();
+    });
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      document.body.classList.remove('fullscreen-active');
+      if (btnFullscreen) {
+        btnFullscreen.classList.remove('hidden');
+      }
+      if (btnExitFullscreen) {
+        btnExitFullscreen.classList.add('hidden');
+      }
+      if (gameHeader && menuOverlay && menuOverlay.classList.contains('hidden')) {
+        gameHeader.classList.remove('hidden');
+      }
+      setTimeout(ajustarDimensoesTela, 100);
+    } else {
+      document.body.classList.add('fullscreen-active');
+      if (gameHeader) {
+        gameHeader.classList.add('hidden');
+      }
+      if (btnFullscreen) {
+        btnFullscreen.classList.add('hidden');
+      }
+      if (btnExitFullscreen) {
+        btnExitFullscreen.classList.remove('hidden');
+      }
+      setTimeout(ajustarDimensoesTela, 100);
+    }
+  });
+
+  document.addEventListener('webkitfullscreenchange', () => {
+    if (!document.webkitFullscreenElement) {
+      document.body.classList.remove('fullscreen-active');
+      if (btnFullscreen) {
+        btnFullscreen.classList.remove('hidden');
+      }
+      if (btnExitFullscreen) {
+        btnExitFullscreen.classList.add('hidden');
+      }
+      if (gameHeader && menuOverlay && menuOverlay.classList.contains('hidden')) {
+        gameHeader.classList.remove('hidden');
+      }
+      setTimeout(ajustarDimensoesTela, 100);
+    } else {
+      document.body.classList.add('fullscreen-active');
+      if (gameHeader) {
+        gameHeader.classList.add('hidden');
+      }
+      if (btnFullscreen) {
+        btnFullscreen.classList.add('hidden');
+      }
+      if (btnExitFullscreen) {
+        btnExitFullscreen.classList.remove('hidden');
+      }
+      setTimeout(ajustarDimensoesTela, 100);
+    }
+  });
+
+  // Tecla ESC para sair de tela cheia se estiver ativa
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('fullscreen-active')) {
+      sairTelaCheia();
+    }
+  });
 
   // Botões de exibição do D-pad e áudio
   if (btnCloseDpad) {
