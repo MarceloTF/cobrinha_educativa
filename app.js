@@ -249,6 +249,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let acumuladorMovimento = 0;
   let temporizadorNotificacao = null;
   let generoVoz = 'female';
+  let avisoInicialJaExibido = false;
+  try {
+    avisoInicialJaExibido = localStorage.getItem('cobrinha_aviso_inicial_visto') === 'true';
+  } catch (e) {
+    avisoInicialJaExibido = false;
+  }
 
   function obterTotalFases() {
     if (modoJogoAtivo === ModoJogo.NUMEROS) {
@@ -304,7 +310,17 @@ document.addEventListener('DOMContentLoaded', () => {
     aguardandoPrimeiroComando = true;
 
     if (startPrompt) {
-      startPrompt.classList.remove('hidden');
+      if (!avisoInicialJaExibido && indiceFaseAtual === 0) {
+        startPrompt.classList.remove('hidden');
+        avisoInicialJaExibido = true;
+        try {
+          localStorage.setItem('cobrinha_aviso_inicial_visto', 'true');
+        } catch (e) {
+          // Fallback silencioso
+        }
+      } else {
+        startPrompt.classList.add('hidden');
+      }
     }
   }
 
@@ -368,6 +384,47 @@ document.addEventListener('DOMContentLoaded', () => {
     return { x: 2, y: 2 };
   }
 
+  // Desenha ou redesenha os gráficos de um item (círculo, anel e texto) com base no tamanhoBloco atual
+  function desenharGraficosDoItem(item) {
+    const { container, value, colorHex } = item;
+    container.removeChildren();
+
+    // Raio da bolinha e do anel calculados estritamente para não extrapolar o quadrado do grid
+    // O raio máximo teórico da célula a partir do centro é tamanhoBloco / 2 (0.50 * tamanhoBloco)
+    const raioBolinha = Math.max(5, Math.round(tamanhoBloco * 0.35)); // Diâmetro de 70% da célula (folga de 15% para cada borda)
+    const raioAnel = Math.max(7, Math.round(tamanhoBloco * 0.43));    // Diâmetro de 86% da célula (nunca ultrapassa a grade, mesmo pulsando)
+
+    // Anel de destaque do item da vez
+    const anel = new PIXI.Graphics();
+    anel.name = 'targetRing';
+    anel.lineStyle(Math.max(1.5, tamanhoBloco * 0.04), 0xffffff, 0.95);
+    anel.drawCircle(0, 0, raioAnel);
+    const alvoAtual = obterValorAlvoAtual();
+    anel.visible = (value === alvoAtual);
+    container.addChild(anel);
+    item.ring = anel;
+
+    // Círculo colorido com o tom pedagógico do arco-íris
+    const circulo = new PIXI.Graphics();
+    circulo.beginFill(colorHex);
+    circulo.lineStyle(Math.max(1, tamanhoBloco * 0.035), 0xffffff, 0.95);
+    circulo.drawCircle(0, 0, raioBolinha);
+    circulo.endFill();
+    container.addChild(circulo);
+
+    // Texto com o número ou letra, perfeitamente contido dentro da bolinha
+    const estiloTexto = new PIXI.TextStyle({
+      fontFamily: 'Fredoka, Nunito, Arial, sans-serif',
+      fontSize: Math.max(9, Math.round(tamanhoBloco * 0.38)),
+      fontWeight: 'bold',
+      fill: 0xffffff,
+      align: 'center'
+    });
+    const spriteTexto = new PIXI.Text(String(value), estiloTexto);
+    spriteTexto.anchor.set(0.5);
+    container.addChild(spriteTexto);
+  }
+
   // Adiciona visualmente um novo item no tabuleiro
   function criarItemNoTabuleiro(valor, indiceItem) {
     const posicoesOcupadas = itensTabuleiro.map(it => ({ x: it.gridX, y: it.gridY }));
@@ -379,46 +436,20 @@ document.addEventListener('DOMContentLoaded', () => {
     containerItem.x = pos.x * tamanhoBloco + tamanhoBloco / 2;
     containerItem.y = pos.y * tamanhoBloco + tamanhoBloco / 2;
 
-    // Anel de destaque do item da vez
-    const anel = new PIXI.Graphics();
-    anel.name = 'targetRing';
-    anel.lineStyle(2.5, 0xffffff, 0.95);
-    anel.drawCircle(0, 0, tamanhoBloco * 0.62);
-    anel.visible = (indiceItem === indiceSequencia);
-    containerItem.addChild(anel);
-
-    // Círculo colorido com o tom do arco-íris
-    const circulo = new PIXI.Graphics();
-    circulo.beginFill(infoCor.hex);
-    circulo.lineStyle(1.8, 0xffffff, 0.92);
-    circulo.drawCircle(0, 0, tamanhoBloco * 0.46);
-    circulo.endFill();
-    containerItem.addChild(circulo);
-
-    // Texto com o número ou letra
-    const estiloTexto = new PIXI.TextStyle({
-      fontFamily: 'Fredoka, Nunito, Arial, sans-serif',
-      fontSize: Math.max(11, Math.round(tamanhoBloco * 0.54)),
-      fontWeight: 'bold',
-      fill: 0xffffff,
-      align: 'center'
-    });
-    const spriteTexto = new PIXI.Text(String(valor), estiloTexto);
-    spriteTexto.anchor.set(0.5);
-    containerItem.addChild(spriteTexto);
-
-    containerItens.addChild(containerItem);
-
-    itensTabuleiro.push({
+    const itemObj = {
       value: valor,
       seqIndex: indiceItem,
       gridX: pos.x,
       gridY: pos.y,
       container: containerItem,
-      ring: anel,
+      ring: null,
       colorHex: infoCor.hex,
       colorName: infoCor.name
-    });
+    };
+
+    desenharGraficosDoItem(itemObj);
+    containerItens.addChild(containerItem);
+    itensTabuleiro.push(itemObj);
   }
 
   // Gera os itens iniciais da fase
@@ -441,6 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (it.container) {
         it.container.x = it.gridX * tamanhoBloco + tamanhoBloco / 2;
         it.container.y = it.gridY * tamanhoBloco + tamanhoBloco / 2;
+        desenharGraficosDoItem(it);
       }
     });
   }
@@ -1445,7 +1477,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const valorAlvoAtual = obterValorAlvoAtual();
     const itemAtivo = itensTabuleiro.find(it => it.value === valorAlvoAtual);
     if (itemAtivo && itemAtivo.ring) {
-      const escala = 1 + Math.sin(Date.now() / 150) * 0.12;
+      const escala = 1 + Math.sin(Date.now() / 160) * 0.05;
       itemAtivo.ring.scale.set(escala);
     }
 
