@@ -1,7 +1,7 @@
 # Cobrinha Educativa
 
 ## Descrição do Projeto
-Desenvolver "Cobrinha Educativa": jogo de alfabetização e ordenação digital para apoio pedagógico. O projeto utiliza a mecânica clássica da cobrinha para auxiliar no processo de alfabetização, ensinando ordenação numérica e alfabética, além de estimular o desenvolvimento do raciocínio lógico-matemático e da coordenação motora fina.
+Cobrinha Educativa é um jogo de alfabetização e ordenação digital para apoio pedagógico. O projeto utiliza a mecânica clássica da cobrinha para auxiliar no processo de alfabetização, ensinando ordenação numérica e alfabética, além de estimular o desenvolvimento do raciocínio lógico-matemático e da coordenação motora fina.
 
 ## Tecnologias Utilizadas
 * HTML5 e CSS3 (Interface híbrida e responsividade)
