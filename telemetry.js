@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { bancoDados, obterOuCriarIdJogador } from './firebase.js';
 
 // Módulo de telemetria para registrar métricas pedagógicas e progresso das partidas
