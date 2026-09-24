@@ -31,6 +31,7 @@ export const GerenciadorTelemetria = {
         fases_concluidas: this.fasesConcluidas,
         total_erros: this.totalErros
       });
+      console.log('[Firebase] Sessão registrada com sucesso! ID:', this.referenciaSessao.id);
     } catch (e) {
       console.warn('Não foi possível registrar a sessão no banco:', e);
     }
@@ -76,6 +77,7 @@ export const GerenciadorTelemetria = {
         tipo_evento: tipoEvento,
         ...dados
       });
+      console.log('[Firebase] Evento gravado:', tipoEvento);
     } catch (e) {
       console.warn('Não foi possível gravar o evento no banco:', e);
     }
