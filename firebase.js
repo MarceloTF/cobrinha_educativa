@@ -1,6 +1,6 @@
 // Configuração do Firebase para salvar as estatísticas e métricas do jogo
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
 
 const configuracaoFirebase = {
   apiKey: "AIzaSyAJrkEinErQNjULV-sJuLVeI-VQjmP60F4",
@@ -14,8 +14,8 @@ const configuracaoFirebase = {
 // Inicializa o app do Firebase
 const app = initializeApp(configuracaoFirebase);
 
-// Conecta ao Firestore Database padrão
-export const bancoDados = getFirestore(app);
+// Conecta ao Firestore Database padrão (default)
+export const bancoDados = getFirestore(app, '(default)');
 export const db = bancoDados; // Mantém export antigo para compatibilidade
 
 // Retorna ou cria um ID persistente para identificar o jogador no navegador

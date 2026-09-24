@@ -7,6 +7,8 @@ import { GerenciadorTelemetria } from './telemetry.js';
 document.addEventListener('DOMContentLoaded', () => {
   // Configurações do Tabuleiro e Velocidade
   let TAMANHO_GRADE = 10;
+  // Velocidade da cobrinha (1: Muito lenta [500ms], 2: Lenta [330ms - padrão], 3: Média [165ms], 4: Rápida [110ms])
+  let nivelVelocidade = 2;
   let INTERVALO_MOVIMENTO_MS = 330;
 
   // As 7 Cores do Arco-Íris utilizadas para guiar a ordenação
@@ -22,13 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Modos de jogo e orientações
   const ModoJogo = {
-    NUMEROS: 'NUMBERS',
-    ALFABETO: 'ALPHABET'
+    NUMEROS: 'NUMEROS',
+    ALFABETO: 'ALFABETO'
   };
 
   const DirecaoOrdem = {
-    CRESCENTE: 'CRESCENT',
-    DECRESCENTE: 'DECRESCENT'
+    CRESCENTE: 'CRESCENTE',
+    DECRESCENTE: 'DECRESCENTE'
+  };
+
+  const ModoMovimento = {
+    AUTOMATICO: 'AUTOMATICO',
+    MANUAL: 'MANUAL'
   };
 
   // Alfabeto completo (A até Z)
@@ -69,6 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOrderCrescent = document.getElementById('btn-order-crescent');
   const btnOrderDecrescent = document.getElementById('btn-order-decrescent');
   const btnBackToMode = document.getElementById('btn-back-to-mode');
+  const menuStepMovement = document.getElementById('menu-step-movement');
+  const movementModeBadge = document.getElementById('movement-mode-badge');
+  const btnMovementManual = document.getElementById('btn-movement-manual');
+  const btnMovementAuto = document.getElementById('btn-movement-auto');
+  const btnBackToOrder = document.getElementById('btn-back-to-order');
 
   // Modais de pausa, métricas, quiz e vitória
   const pauseOverlay = document.getElementById('pause-overlay');
@@ -111,19 +123,124 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLeft = document.getElementById('btn-left');
   const btnRight = document.getElementById('btn-right');
 
-  // Sistema de som com Web Audio API
+  // Sistema de som com Web Audio API e Síntese de Voz Didática
   let contextoAudio = null;
   let somHabilitado = true;
+  let generoVoz = 'female';
+  let vozEducadoraCache = null;
+  let sinteseVozAquecida = false;
+
+  function obterMelhorVozEducadora(vozes) {
+    if (!vozes || vozes.length === 0) return null;
+
+    const vozesPt = vozes.filter(v => v.lang && v.lang.toLowerCase().startsWith('pt'));
+    if (vozesPt.length === 0) return null;
+
+    const avaliarVoz = (v) => {
+      let pontuacao = 0;
+      const nome = (v.name || '').toLowerCase();
+      const idioma = (v.lang || '').toLowerCase();
+
+      if (idioma.includes('br') || idioma.includes('pt-br') || idioma.includes('pt_br')) {
+        pontuacao += 60;
+      }
+
+      const ehMasculino = nome.includes('daniel') || nome.includes('felipe') || nome.includes('antonio') || nome.includes('antônio') || nome.includes('ricardo') || nome.includes('male') || nome.includes('homem') || nome.includes('thiago') || nome.includes('julio');
+      const ehFeminino = nome.includes('francisca') || nome.includes('luciana') || nome.includes('thalita') || nome.includes('leticia') || nome.includes('letícia') || nome.includes('vitoria') || nome.includes('vitória') || nome.includes('camila') || nome.includes('maria') || nome.includes('joana') || nome.includes('heloisa') || nome.includes('heloísa') || nome.includes('female') || nome.includes('mulher');
+
+      if (generoVoz === 'female') {
+        if (nome.includes('francisca')) pontuacao += 120;
+        else if (nome.includes('luciana')) pontuacao += 115;
+        else if (nome.includes('thalita')) pontuacao += 110;
+        else if (nome.includes('google') && (idioma.includes('br') || nome.includes('brasil'))) pontuacao += 100;
+        else if (ehFeminino) pontuacao += 90;
+
+        if (ehMasculino) pontuacao -= 150;
+      } else {
+        if (nome.includes('antonio') || nome.includes('antônio')) pontuacao += 120;
+        else if (nome.includes('felipe')) pontuacao += 110;
+        else if (nome.includes('daniel')) pontuacao += 100;
+        else if (ehMasculino) pontuacao += 90;
+
+        if (ehFeminino) pontuacao -= 150;
+      }
+
+      if (nome.includes('natural') || nome.includes('neural') || nome.includes('online') || nome.includes('enhanced') || nome.includes('premium')) {
+        pontuacao += 40;
+      }
+
+      return pontuacao;
+    };
+
+    vozesPt.sort((a, b) => avaliarVoz(b) - avaliarVoz(a));
+    return vozesPt[0];
+  }
+
+  function carregarVozesEducadoras() {
+    if (!('speechSynthesis' in window)) return;
+    const vozes = window.speechSynthesis.getVoices();
+    if (vozes && vozes.length > 0) {
+      vozEducadoraCache = obterMelhorVozEducadora(vozes);
+    }
+  }
+
+  if ('speechSynthesis' in window) {
+    carregarVozesEducadoras();
+    window.speechSynthesis.onvoiceschanged = () => {
+      carregarVozesEducadoras();
+    };
+  }
 
   function iniciarAudio() {
+    // 1. Inicializa ou reativa o contexto de áudio
     if (!contextoAudio) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (AudioContextClass) contextoAudio = new AudioContextClass();
     }
     if (contextoAudio && contextoAudio.state === 'suspended') {
-      contextoAudio.resume();
+      contextoAudio.resume().catch(() => {});
+    }
+
+    // 2. Destrava canal de hardware de áudio com buffer de silêncio
+    if (contextoAudio && contextoAudio.state === 'running') {
+      try {
+        const bufferSilencioso = contextoAudio.createBuffer(1, 1, 22050);
+        const fonte = contextoAudio.createBufferSource();
+        fonte.buffer = bufferSilencioso;
+        fonte.connect(contextoAudio.destination);
+        fonte.start(0);
+      } catch (e) {
+        // Ignora eventual restrição
+      }
+    }
+
+    // 3. Pré-carrega vozes de síntese
+    carregarVozesEducadoras();
+
+    // 4. Pré-aquece a API de síntese para eliminar cold-start delay na primeira bolinha
+    if ('speechSynthesis' in window && !sinteseVozAquecida) {
+      sinteseVozAquecida = true;
+      try {
+        const aquecimento = new SpeechSynthesisUtterance(' ');
+        aquecimento.volume = 0;
+        aquecimento.rate = 10;
+        if (vozEducadoraCache) aquecimento.voice = vozEducadoraCache;
+        window.speechSynthesis.speak(aquecimento);
+      } catch (e) {
+        // Ignora se não puder falar de imediato
+      }
     }
   }
+
+  // Inicializa o áudio de imediato na abertura do app
+  iniciarAudio();
+
+  // Escuta qualquer primeira interação (toque, clique ou tecla) para destravar o subsistema sem atraso
+  ['click', 'touchstart', 'pointerdown', 'keydown'].forEach(nomeEvento => {
+    window.addEventListener(nomeEvento, () => {
+      iniciarAudio();
+    }, { passive: true });
+  });
 
   function tocarTom(frequencia, tipo = 'sine', duracao = 0.1, atraso = 0, volume = 0.16) {
     if (!somHabilitado) return;
@@ -230,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Estado do jogo
   let modoJogoAtivo = ModoJogo.NUMEROS;
   let direcaoOrdemAtiva = DirecaoOrdem.CRESCENTE;
+  let modoMovimentoAtivo = ModoMovimento.AUTOMATICO;
 
   let indiceFaseAtual = 0;
   let sequenciaFaseAtual = [];
@@ -242,13 +360,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let aguardandoPrimeiroComando = true;
   let jogoPausado = false;
   let emQuizOuVitoria = false;
+  let transicaoParaQuiz = false;
 
   let itensTabuleiro = [];
   let maximoItensVisiveis = 3;
   let proximoIndiceSpawn = 0;
   let acumuladorMovimento = 0;
   let temporizadorNotificacao = null;
-  let generoVoz = 'female';
   let avisoInicialJaExibido = false;
   try {
     avisoInicialJaExibido = localStorage.getItem('cobrinha_aviso_inicial_visto') === 'true';
@@ -489,13 +607,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const faixa = (direcaoOrdemAtiva === DirecaoOrdem.CRESCENTE)
         ? `1 a ${sequenciaFaseAtual.length}`
         : `${sequenciaFaseAtual.length} a 1`;
-      descricaoModo = `Fase ${numeroFase}/${totalFases}: Números (${faixa})`;
+      const sufixoRitmo = (modoMovimentoAtivo === ModoMovimento.MANUAL) ? ' [Passo a Passo]' : '';
+      descricaoModo = `Fase ${numeroFase}/${totalFases}: Números (${faixa})${sufixoRitmo}`;
     } else {
       const ultimaLetra = ALFABETO_COMPLETO[sequenciaFaseAtual.length - 1];
       const faixa = (direcaoOrdemAtiva === DirecaoOrdem.CRESCENTE)
         ? `A a ${ultimaLetra}`
         : `${ultimaLetra} a A`;
-      descricaoModo = `Fase ${numeroFase}/${totalFases}: Alfabeto (${faixa})`;
+      const sufixoRitmo = (modoMovimentoAtivo === ModoMovimento.MANUAL) ? ' [Passo a Passo]' : '';
+      descricaoModo = `Fase ${numeroFase}/${totalFases}: Alfabeto (${faixa})${sufixoRitmo}`;
     }
 
     phaseLabel.textContent = descricaoModo;
@@ -503,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (valorAlvo !== null && corAlvo) {
       targetLabel.innerHTML = `Coma: <strong>${valorAlvo}</strong> <span class="target-color-indicator" style="background-color: ${corAlvo.css};">${corAlvo.name}</span>`;
     } else {
-      targetLabel.innerHTML = `Coma: <strong>✔</strong>`;
+      targetLabel.innerHTML = `Coma: <strong>OK</strong>`;
     }
 
     itensTabuleiro.forEach(it => {
@@ -736,14 +856,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (stat.completed) {
           if (stat.firstTrySuccess) {
-            textoStatus = `⭐ De primeira! (${stat.attempts} tentativa)`;
+            textoStatus = `Primeira tentativa (${stat.attempts} tentativa)`;
             classeStatus = 'first-try';
           } else {
-            textoStatus = `🔄 Avançou após ${stat.errors} ${stat.errors === 1 ? 'erro' : 'erros'} (${stat.attempts} tentativas)`;
+            textoStatus = `Concluido apos ${stat.errors} ${stat.errors === 1 ? 'erro' : 'erros'} (${stat.attempts} tentativas)`;
             classeStatus = 'retried';
           }
         } else {
-          textoStatus = `⏳ Praticando (${stat.errors} ${stat.errors === 1 ? 'erro' : 'erros'})`;
+          textoStatus = `Em andamento (${stat.errors} ${stat.errors === 1 ? 'erro' : 'erros'})`;
           classeStatus = 'retried';
         }
 
@@ -788,6 +908,7 @@ document.addEventListener('DOMContentLoaded', () => {
     indiceSequencia = 0;
     jogoPausado = false;
     emQuizOuVitoria = false;
+    transicaoParaQuiz = false;
 
     registrarInicioFase(indiceFase);
 
@@ -816,7 +937,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const nomeModo = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'Números' : 'Alfabeto';
     const nomeOrdem = (direcaoOrdemAtiva === DirecaoOrdem.CRESCENTE) ? 'Crescente' : 'Decrescente / Inversa';
-    exibirNotificacao(`Fase ${indiceFase + 1} de ${obterTotalFases()}: Modo ${nomeModo} (${nomeOrdem})`, true);
+    const rotuloRitmo = (modoMovimentoAtivo === ModoMovimento.MANUAL) ? ' (Passo a Passo)' : '';
+    exibirNotificacao(`Fase ${indiceFase + 1} de ${obterTotalFases()}: Modo ${nomeModo} (${nomeOrdem})${rotuloRitmo}`, true);
     setTimeout(ajustarDimensoesTela, 50);
   }
 
@@ -830,77 +952,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
   }
 
-  // Síntese de voz com entonação didática
-  let vozEducadoraCache = null;
-
-  function obterMelhorVozEducadora(vozes) {
-    if (!vozes || vozes.length === 0) return null;
-
-    const vozesPt = vozes.filter(v => v.lang && v.lang.toLowerCase().startsWith('pt'));
-    if (vozesPt.length === 0) return null;
-
-    const avaliarVoz = (v) => {
-      let pontuacao = 0;
-      const nome = (v.name || '').toLowerCase();
-      const idioma = (v.lang || '').toLowerCase();
-
-      if (idioma.includes('br') || idioma.includes('pt-br') || idioma.includes('pt_br')) {
-        pontuacao += 60;
-      }
-
-      const ehMasculino = nome.includes('daniel') || nome.includes('felipe') || nome.includes('antonio') || nome.includes('antônio') || nome.includes('ricardo') || nome.includes('male') || nome.includes('homem') || nome.includes('thiago') || nome.includes('julio');
-      const ehFeminino = nome.includes('francisca') || nome.includes('luciana') || nome.includes('thalita') || nome.includes('leticia') || nome.includes('letícia') || nome.includes('vitoria') || nome.includes('vitória') || nome.includes('camila') || nome.includes('maria') || nome.includes('joana') || nome.includes('heloisa') || nome.includes('heloísa') || nome.includes('female') || nome.includes('mulher');
-
-      if (generoVoz === 'female') {
-        if (nome.includes('francisca')) pontuacao += 120;
-        else if (nome.includes('luciana')) pontuacao += 115;
-        else if (nome.includes('thalita')) pontuacao += 110;
-        else if (nome.includes('google') && (idioma.includes('br') || nome.includes('brasil'))) pontuacao += 100;
-        else if (ehFeminino) pontuacao += 90;
-
-        if (ehMasculino) pontuacao -= 150;
-      } else {
-        if (nome.includes('antonio') || nome.includes('antônio')) pontuacao += 120;
-        else if (nome.includes('felipe')) pontuacao += 110;
-        else if (nome.includes('daniel')) pontuacao += 100;
-        else if (ehMasculino) pontuacao += 90;
-
-        if (ehFeminino) pontuacao -= 150;
-      }
-
-      if (nome.includes('natural') || nome.includes('neural') || nome.includes('online') || nome.includes('enhanced') || nome.includes('premium')) {
-        pontuacao += 40;
-      }
-
-      return pontuacao;
-    };
-
-    vozesPt.sort((a, b) => avaliarVoz(b) - avaliarVoz(a));
-    return vozesPt[0];
-  }
-
-  function carregarVozesEducadoras() {
-    if (!('speechSynthesis' in window)) return;
-    const vozes = window.speechSynthesis.getVoices();
-    if (vozes && vozes.length > 0) {
-      vozEducadoraCache = obterMelhorVozEducadora(vozes);
-    }
-  }
-
-  if ('speechSynthesis' in window) {
-    carregarVozesEducadoras();
-    window.speechSynthesis.onvoiceschanged = () => {
-      carregarVozesEducadoras();
-    };
-  }
-
   function narrarTexto(texto, aoConcluir) {
     if (!('speechSynthesis' in window) || !somHabilitado) {
       if (aoConcluir) aoConcluir();
       return;
     }
     try {
-      window.speechSynthesis.cancel();
+      iniciarAudio();
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+      }
       const locucao = new SpeechSynthesisUtterance(texto);
       locucao.lang = 'pt-BR';
       locucao.rate = 0.94;
@@ -934,6 +995,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (aoConcluir) aoConcluir();
     }
   }
+
+  const GerenciadorAudio = {
+    narrarTexto
+  };
 
   function lerPerguntaAtual() {
     if (!quizAtivoAtual) return;
@@ -1114,6 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let momentoExibicaoQuiz = 0;
 
   function dispararQuizFase() {
+    transicaoParaQuiz = false;
     emQuizOuVitoria = true;
     jogoPausado = true;
     appPixi.ticker.stop();
@@ -1127,8 +1193,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     momentoExibicaoQuiz = Date.now();
-
-    quizBadgeIcon.textContent = (modoJogoAtivo === ModoJogo.NUMEROS) ? '🔢' : '🔤';
+ 
+    quizBadgeIcon.textContent = '';
     quizBadgeText.textContent = `Desafio da Fase ${indiceFaseAtual + 1}!`;
     quizQuestionText.textContent = quizAtivoAtual.question;
 
@@ -1165,7 +1231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nomeModo = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'Números (1 a 10)' : 'Alfabeto (A a Z)';
     const nomeOrdem = (direcaoOrdemAtiva === DirecaoOrdem.CRESCENTE) ? 'Crescente / Alfabética' : 'Decrescente / Inversa';
 
-    victoryTitle.textContent = '🎉 Sensacional! Você Venceu Tudo!';
+    victoryTitle.textContent = 'Sensacional! Você Venceu Tudo!';
     const listaEstatisticas = Object.values(metricasAprendizado.phaseStats);
     const qtdPrimeiraTentativa = listaEstatisticas.filter(s => s.firstTrySuccess === true).length;
     victoryDesc.textContent = `Parabéns! Você completou todas as ${obterTotalFases()} fases do Modo ${nomeModo} em ordem ${nomeOrdem} e aprendeu todas as 7 cores do arco-íris! Você acertou ${qtdPrimeiraTentativa} fases de primeira!`;
@@ -1190,14 +1256,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (configOpcao.isCorrect) {
         // Resposta Certa
-        GerenciadorTelemetria.registrarEvento('QUIZ_ANSWER', {
-          phase: indiceFaseAtual + 1,
-          question: quizAtivoAtual.question,
-          is_correct: true,
-          chosen_answer: configOpcao.text,
-          time_to_answer_ms: Date.now() - momentoExibicaoQuiz,
-          is_retry: (quizAtivoAtual.retry_attempts || 0) > 0,
-          retry_attempts: quizAtivoAtual.retry_attempts || 0
+        GerenciadorTelemetria.registrarEvento('RESPOSTA_QUIZ', {
+          fase: indiceFaseAtual + 1,
+          pergunta: quizAtivoAtual.question,
+          esta_correto: true,
+          resposta_escolhida: configOpcao.text,
+          tempo_resposta_ms: Date.now() - momentoExibicaoQuiz,
+          e_tentativa: (quizAtivoAtual.retry_attempts || 0) > 0,
+          tentativas_repeticao: quizAtivoAtual.retry_attempts || 0
         });
 
         quizParaRepetir = null;
@@ -1209,8 +1275,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const ehFinal = (indiceFaseAtual + 1 >= obterTotalFases());
 
         quizFeedback.textContent = ehFinal
-          ? '🎉 Muito bem, resposta certa!'
-          : `🎉 Muito bem, resposta certa! Avançando para a Fase ${numProximaFase}...`;
+          ? 'Muito bem, resposta certa!'
+          : `Muito bem, resposta certa! Avançando para a Fase ${numProximaFase}...`;
         quizFeedback.className = 'quiz-feedback correct';
 
         narrarTexto('muito bem, resposta certa');
@@ -1228,14 +1294,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Resposta Errada
         quizAtivoAtual.retry_attempts = (quizAtivoAtual.retry_attempts || 0) + 1;
 
-        GerenciadorTelemetria.registrarEvento('QUIZ_ANSWER', {
-          phase: indiceFaseAtual + 1,
-          question: quizAtivoAtual.question,
-          is_correct: false,
-          chosen_answer: configOpcao.text,
-          time_to_answer_ms: Date.now() - momentoExibicaoQuiz,
-          is_retry: quizAtivoAtual.retry_attempts > 1,
-          retry_attempts: quizAtivoAtual.retry_attempts
+        GerenciadorTelemetria.registrarEvento('RESPOSTA_QUIZ', {
+          fase: indiceFaseAtual + 1,
+          pergunta: quizAtivoAtual.question,
+          esta_correto: false,
+          resposta_escolhida: configOpcao.text,
+          tempo_resposta_ms: Date.now() - momentoExibicaoQuiz,
+          e_tentativa: quizAtivoAtual.retry_attempts > 1,
+          tentativas_repeticao: quizAtivoAtual.retry_attempts
         });
         GerenciadorTelemetria.incrementarErros();
 
@@ -1243,7 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tocarSomErro();
         registrarRespostaQuiz(indiceFaseAtual, quizAtivoAtual.question, configOpcao.text, quizAtivoAtual.correctAnswer, false);
 
-        quizFeedback.textContent = `❌ Resposta errada! Vamos jogar a Fase ${indiceFaseAtual + 1} novamente para praticar.`;
+        quizFeedback.textContent = `Resposta errada! Vamos jogar a Fase ${indiceFaseAtual + 1} novamente para praticar.`;
         quizFeedback.className = 'quiz-feedback wrong';
 
         narrarTexto('resposta errada');
@@ -1259,17 +1325,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pausa e retorno
   function alternarPausa() {
-    if (emQuizOuVitoria || !menuOverlay.classList.contains('hidden') || !metricsOverlay.classList.contains('hidden')) return;
+    if (emQuizOuVitoria || transicaoParaQuiz || !menuOverlay.classList.contains('hidden') || !metricsOverlay.classList.contains('hidden')) return;
 
     jogoPausado = !jogoPausado;
 
     if (jogoPausado) {
       appPixi.ticker.stop();
       pauseOverlay.classList.remove('hidden');
-      if (btnPause) btnPause.textContent = '▶️';
+      if (btnPause) {
+        btnPause.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
+        btnPause.setAttribute('title', 'Continuar jogo (ESC)');
+      }
     } else {
       pauseOverlay.classList.add('hidden');
-      if (btnPause) btnPause.textContent = '⏸️';
+      if (btnPause) {
+        btnPause.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+        btnPause.setAttribute('title', 'Pausar jogo (ESC)');
+      }
       appPixi.ticker.start();
     }
   }
@@ -1304,6 +1376,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     menuStepMode.classList.remove('hidden');
     menuStepOrder.classList.add('hidden');
+    if (menuStepMovement) menuStepMovement.classList.add('hidden');
     menuOverlay.classList.remove('hidden');
 
     // A barra superior não deve aparecer por cima do menu inicial
@@ -1330,11 +1403,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btnChooseNumbers.addEventListener('click', () => {
       iniciarAudio();
       modoJogoAtivo = ModoJogo.NUMEROS;
-      selectedModeBadge.textContent = '🔢 Modo Números (1 a 10)';
+      selectedModeBadge.textContent = 'Modo Números (1 a 10)';
       orderStepTitle.textContent = 'Como você quer a ordem dos números?';
-      orderCrescentTitle.textContent = '📈 Ordem Crescente';
+      orderCrescentTitle.textContent = 'Ordem Crescente';
       orderCrescentDesc.textContent = 'Do menor para o maior (1, 2, 3...)';
-      orderDecrescentTitle.textContent = '📉 Ordem Decrescente';
+      orderDecrescentTitle.textContent = 'Ordem Decrescente';
       orderDecrescentDesc.textContent = 'Do maior para o menor (...3, 2, 1)';
 
       menuStepMode.classList.add('hidden');
@@ -1346,11 +1419,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btnChooseLetters.addEventListener('click', () => {
       iniciarAudio();
       modoJogoAtivo = ModoJogo.ALFABETO;
-      selectedModeBadge.textContent = '🔤 Modo Alfabeto (A a Z)';
+      selectedModeBadge.textContent = 'Modo Alfabeto (A a Z)';
       orderStepTitle.textContent = 'Como você quer a ordem das letras?';
-      orderCrescentTitle.textContent = '📈 Ordem Alfabética';
+      orderCrescentTitle.textContent = 'Ordem Alfabética';
       orderCrescentDesc.textContent = 'Começa na letra A (A, B, C...)';
-      orderDecrescentTitle.textContent = '📉 Ordem Inversa';
+      orderDecrescentTitle.textContent = 'Ordem Inversa';
       orderDecrescentDesc.textContent = 'De trás para frente (...C, B, A)';
 
       menuStepMode.classList.add('hidden');
@@ -1370,8 +1443,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnOrderCrescent.addEventListener('click', () => {
       iniciarAudio();
       direcaoOrdemAtiva = DirecaoOrdem.CRESCENTE;
-      GerenciadorTelemetria.iniciarSessao(modoJogoAtivo, direcaoOrdemAtiva, TAMANHO_GRADE, INTERVALO_MOVIMENTO_MS);
-      iniciarFase(0);
+      menuStepOrder.classList.add('hidden');
+      if (menuStepMovement) menuStepMovement.classList.remove('hidden');
+      if (movementModeBadge) {
+        const rotuloModo = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'Números' : 'Alfabeto';
+        movementModeBadge.textContent = `${rotuloModo} • Ordem Crescente`;
+      }
     });
   }
 
@@ -1379,14 +1456,45 @@ document.addEventListener('DOMContentLoaded', () => {
     btnOrderDecrescent.addEventListener('click', () => {
       iniciarAudio();
       direcaoOrdemAtiva = DirecaoOrdem.DECRESCENTE;
-      GerenciadorTelemetria.iniciarSessao(modoJogoAtivo, direcaoOrdemAtiva, TAMANHO_GRADE, INTERVALO_MOVIMENTO_MS);
+      menuStepOrder.classList.add('hidden');
+      if (menuStepMovement) menuStepMovement.classList.remove('hidden');
+      if (movementModeBadge) {
+        const rotuloModo = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'Números' : 'Alfabeto';
+        const rotuloOrdem = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'Ordem Decrescente' : 'Ordem Inversa';
+        movementModeBadge.textContent = `${rotuloModo} • ${rotuloOrdem}`;
+      }
+    });
+  }
+
+  if (btnBackToOrder) {
+    btnBackToOrder.addEventListener('click', () => {
+      iniciarAudio();
+      if (menuStepMovement) menuStepMovement.classList.add('hidden');
+      menuStepOrder.classList.remove('hidden');
+    });
+  }
+
+  if (btnMovementManual) {
+    btnMovementManual.addEventListener('click', () => {
+      iniciarAudio();
+      modoMovimentoAtivo = ModoMovimento.MANUAL;
+      GerenciadorTelemetria.iniciarSessao(modoJogoAtivo, direcaoOrdemAtiva, TAMANHO_GRADE, INTERVALO_MOVIMENTO_MS, modoMovimentoAtivo);
+      iniciarFase(0);
+    });
+  }
+
+  if (btnMovementAuto) {
+    btnMovementAuto.addEventListener('click', () => {
+      iniciarAudio();
+      modoMovimentoAtivo = ModoMovimento.AUTOMATICO;
+      GerenciadorTelemetria.iniciarSessao(modoJogoAtivo, direcaoOrdemAtiva, TAMANHO_GRADE, INTERVALO_MOVIMENTO_MS, modoMovimentoAtivo);
       iniciarFase(0);
     });
   }
 
   if (btnRestartGame) {
     btnRestartGame.addEventListener('click', () => {
-      GerenciadorTelemetria.iniciarSessao(modoJogoAtivo, direcaoOrdemAtiva, TAMANHO_GRADE, INTERVALO_MOVIMENTO_MS);
+      GerenciadorTelemetria.iniciarSessao(modoJogoAtivo, direcaoOrdemAtiva, TAMANHO_GRADE, INTERVALO_MOVIMENTO_MS, modoMovimentoAtivo);
       iniciarFase(0);
     });
   }
@@ -1432,9 +1540,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   aplicarTamanhoDpad(nivelTamanhoDpad);
 
+  function aplicarVelocidade(nivel) {
+    nivelVelocidade = nivel;
+    if (nivel === 1) {
+      INTERVALO_MOVIMENTO_MS = 500; // Muito Lenta (Mais tempo de reação para crianças pequenas)
+    } else if (nivel === 2) {
+      INTERVALO_MOVIMENTO_MS = 330; // Lenta (Padrão original mantido)
+    } else if (nivel === 3) {
+      INTERVALO_MOVIMENTO_MS = 165; // Média
+    } else if (nivel === 4) {
+      INTERVALO_MOVIMENTO_MS = 110; // Rápida
+    } else {
+      nivelVelocidade = 2;
+      INTERVALO_MOVIMENTO_MS = 330;
+    }
+    try {
+      localStorage.setItem('velocidade_cobrinha', String(nivelVelocidade));
+    } catch (e) {}
+  }
+
+  // Carrega velocidade salva ou mantém Lenta (2 - 330ms) como padrão
+  try {
+    const velocidadeSalva = localStorage.getItem('velocidade_cobrinha');
+    if (velocidadeSalva) {
+      const v = parseInt(velocidadeSalva, 10);
+      if (v >= 1 && v <= 4) {
+        aplicarVelocidade(v);
+      }
+    }
+  } catch (e) {}
+
+  if (speedSlider) {
+    speedSlider.value = String(nivelVelocidade);
+  }
+
   if (btnOpenOptions) {
     btnOpenOptions.addEventListener('click', () => {
       if (dpadSizeSlider) dpadSizeSlider.value = String(nivelTamanhoDpad);
+      if (speedSlider) speedSlider.value = String(nivelVelocidade);
       optionsOverlay.classList.remove('hidden');
       menuStepMode.classList.add('hidden');
     });
@@ -1449,10 +1592,8 @@ document.addEventListener('DOMContentLoaded', () => {
       TAMANHO_GRADE = gradeSelecionada;
       maximoItensVisiveis = (TAMANHO_GRADE === 20) ? 5 : 3;
 
-      const valorVelocidade = parseInt(speedSlider.value, 10);
-      if (valorVelocidade === 1) INTERVALO_MOVIMENTO_MS = 330;
-      else if (valorVelocidade === 2) INTERVALO_MOVIMENTO_MS = 165;
-      else if (valorVelocidade === 3) INTERVALO_MOVIMENTO_MS = 110;
+      const valorVelocidade = parseInt(speedSlider.value, 10) || 2;
+      aplicarVelocidade(valorVelocidade);
 
       if (dpadSizeSlider) {
         const novoTamanhoDpad = parseInt(dpadSizeSlider.value, 10) || 3;
@@ -1472,7 +1613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Loop de renderização do PixiJS
   appPixi.ticker.add(() => {
-    if (jogoPausado || emQuizOuVitoria) return;
+    if (jogoPausado || emQuizOuVitoria || transicaoParaQuiz) return;
 
     const valorAlvoAtual = obterValorAlvoAtual();
     const itemAtivo = itensTabuleiro.find(it => it.value === valorAlvoAtual);
@@ -1482,6 +1623,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (aguardandoPrimeiroComando) return;
+
+    if (modoMovimentoAtivo === ModoMovimento.MANUAL) return;
 
     acumuladorMovimento += appPixi.ticker.elapsedMS;
     if (acumuladorMovimento >= INTERVALO_MOVIMENTO_MS) {
@@ -1500,16 +1643,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Colisão com as bordas
     if (novaCabeca.x < 0 || novaCabeca.x >= TAMANHO_GRADE || novaCabeca.y < 0 || novaCabeca.y >= TAMANHO_GRADE) {
-      GerenciadorTelemetria.registrarEvento('FATAL_ERROR', { phase: indiceFaseAtual + 1, reason: 'WALL_CRASH' });
-      reiniciarFaseAtual('💥 Bateu na parede! Reiniciando esta fase...');
+      GerenciadorTelemetria.registrarEvento('ERRO_FATAL', { fase: indiceFaseAtual + 1, motivo: 'COLISAO_PAREDE' });
+      reiniciarFaseAtual('Bateu na parede! Reiniciando esta fase...');
       return;
     }
 
     // Colisão com o próprio corpo
     const colidiuConsigo = cobra.some(seg => seg.x === novaCabeca.x && seg.y === novaCabeca.y);
     if (colidiuConsigo) {
-      GerenciadorTelemetria.registrarEvento('FATAL_ERROR', { phase: indiceFaseAtual + 1, reason: 'SELF_CRASH' });
-      reiniciarFaseAtual('💥 Bateu no próprio corpo! Reiniciando esta fase...');
+      GerenciadorTelemetria.registrarEvento('ERRO_FATAL', { fase: indiceFaseAtual + 1, motivo: 'COLISAO_CORPO' });
+      reiniciarFaseAtual('Bateu no próprio corpo! Reiniciando esta fase...');
       return;
     }
 
@@ -1524,13 +1667,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (itemComido.value === alvoEsperado) {
         // Coleta correta
-        GerenciadorTelemetria.registrarEvento('CORRECT_SEQUENCE', {
-          phase: indiceFaseAtual + 1,
-          expected_target: alvoEsperado,
-          actual_eaten: itemComido.value
+        GerenciadorTelemetria.registrarEvento('SEQUENCIA_CORRETA', {
+          fase: indiceFaseAtual + 1,
+          alvo_esperado: alvoEsperado,
+          item_comido: itemComido.value
         });
         tocarSomAcerto();
 
+        const item = itemComido;
         containerItens.removeChild(itemComido.container);
         itensTabuleiro.splice(indiceItemComido, 1);
 
@@ -1543,36 +1687,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
         atualizarPainelHUD();
 
-        if (indiceSequencia >= sequenciaFaseAtual.length) {
-          dispararQuizFase();
+        const ehUltimoItem = (indiceSequencia >= sequenciaFaseAtual.length);
+
+        if (ehUltimoItem) {
+          // Última bolinha da fase:
+          // 1. Congela o movimento para a cobrinha não colidir
+          transicaoParaQuiz = true;
+          // 2. Narra a última bolinha sincronizada com o som de acerto
+          setTimeout(() => {
+            GerenciadorAudio.narrarTexto(item.value.toString());
+          }, 60);
+          // 3. Aguarda a fala da bolinha e em seguida aguarda 1 segundo completo para exibir o quiz
+          setTimeout(() => {
+            dispararQuizFase();
+          }, 1600);
           return;
+        } else {
+          // Bolinha intermediária: narra sincronizada com o som de acerto
+          setTimeout(() => {
+            GerenciadorAudio.narrarTexto(item.value.toString());
+          }, 60);
         }
 
       } else {
         // Coleta fora de ordem
-        let topologiaErro = 'RANDOM';
+        let topologiaErro = 'ALEATORIA';
         const strEsperado = String(alvoEsperado);
         const strAtual = String(itemComido.value);
         if (modoJogoAtivo === ModoJogo.NUMEROS) {
           if (parseInt(strAtual) === parseInt(strEsperado) + 1 || parseInt(strAtual) === parseInt(strEsperado) - 1) {
-            topologiaErro = 'ADJACENCY';
+            topologiaErro = 'ADJACENTE';
           }
         } else {
           if (Math.abs(strAtual.charCodeAt(0) - strEsperado.charCodeAt(0)) === 1) {
-            topologiaErro = 'ADJACENCY';
+            topologiaErro = 'ADJACENTE';
           }
         }
 
-        GerenciadorTelemetria.registrarEvento('SEQUENCE_ERROR', {
-          phase: indiceFaseAtual + 1,
-          expected_target: alvoEsperado,
-          actual_eaten: itemComido.value,
-          error_topology: topologiaErro
+        GerenciadorTelemetria.registrarEvento('ERRO_DE_SEQUENCIA', {
+          fase: indiceFaseAtual + 1,
+          alvo_esperado: alvoEsperado,
+          item_comido: itemComido.value,
+          topologia_erro: topologiaErro
         });
         GerenciadorTelemetria.incrementarErros();
 
         const substantivo = (modoJogoAtivo === ModoJogo.NUMEROS) ? 'número' : 'letra';
-        reiniciarFaseAtual(`⚠️ Ops! Você comeu o ${substantivo} ${itemComido.value}, mas a ordem correta era o ${alvoEsperado}!`);
+        reiniciarFaseAtual(`Ops! Você comeu o ${substantivo} ${itemComido.value}, mas a ordem correta era o ${alvoEsperado}!`);
         return;
       }
 
@@ -1590,14 +1751,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Direcionamento e eventos de entrada
   function definirDirecao(x, y) {
     iniciarAudio();
-    if (jogoPausado || emQuizOuVitoria || !menuOverlay.classList.contains('hidden')) return;
+    if (jogoPausado || emQuizOuVitoria || transicaoParaQuiz || !menuOverlay.classList.contains('hidden')) return;
 
     if (aguardandoPrimeiroComando) {
       aguardandoPrimeiroComando = false;
       if (startPrompt) startPrompt.classList.add('hidden');
       direcao = { x, y };
       proximaDirecao = { x, y };
-      renderizarCobra();
+      if (modoMovimentoAtivo === ModoMovimento.MANUAL) {
+        atualizarPassoCobra();
+      } else {
+        renderizarCobra();
+      }
       return;
     }
 
@@ -1607,6 +1772,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     proximaDirecao = { x, y };
+
+    if (modoMovimentoAtivo === ModoMovimento.MANUAL) {
+      atualizarPassoCobra();
+    }
   }
 
   window.addEventListener('keydown', (e) => {
@@ -1870,7 +2039,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSound.addEventListener('click', () => {
       iniciarAudio();
       somHabilitado = !somHabilitado;
-      btnSound.textContent = somHabilitado ? '🔊' : '🔇';
+      btnSound.innerHTML = somHabilitado
+        ? '<img src="/assets/icons/som-ativo.svg" alt="Som Ativo" width="18" height="18" />'
+        : '<img src="/assets/icons/som-mudo.svg" alt="Som Mudo" width="18" height="18" />';
     });
   }
 

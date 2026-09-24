@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { bancoDados, obterOuCriarIdJogador } from './firebase.js';
 
 // Módulo de telemetria para registrar métricas pedagógicas e progresso das partidas
@@ -10,7 +10,7 @@ export const GerenciadorTelemetria = {
   totalErros: 0,
 
   // Inicializa uma nova sessão quando o jogador clica em Iniciar
-  async iniciarSessao(modoJogo, direcaoOrdem, tamanhoGrade, velocidadeMs) {
+  async iniciarSessao(modoJogo, direcaoOrdem, tamanhoGrade, velocidadeMs, modoMovimento = 'AUTOMATICO') {
     this.idUsuario = obterOuCriarIdJogador();
     this.idSessao = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -19,21 +19,20 @@ export const GerenciadorTelemetria = {
     this.totalErros = 0;
 
     try {
-      console.log('📡 [Firebase] Tentando registrar sessão...', { modoJogo, direcaoOrdem });
       this.referenciaSessao = await addDoc(collection(bancoDados, 'telemetry_sessions'), {
-        user_id: this.idUsuario,
-        session_id: this.idSessao,
-        start_timestamp: serverTimestamp(),
-        game_mode: modoJogo,
-        order_direction: direcaoOrdem,
-        grid_size: tamanhoGrade,
-        speed_interval_ms: velocidadeMs,
-        completed_phases: this.fasesConcluidas,
-        total_errors: this.totalErros
+        id_usuario: this.idUsuario,
+        id_sessao: this.idSessao,
+        horario_inicio: serverTimestamp(),
+        modo_jogo: modoJogo,
+        direcao_ordem: direcaoOrdem,
+        modo_movimento: modoMovimento,
+        tamanho_grade: tamanhoGrade,
+        intervalo_velocidade_ms: velocidadeMs,
+        fases_concluidas: this.fasesConcluidas,
+        total_erros: this.totalErros
       });
-      console.log('✅ [Firebase] Sessão registrada com sucesso! ID:', this.referenciaSessao.id);
     } catch (e) {
-      console.error('❌ [Firebase] Erro ao registrar sessão:', e);
+      console.warn('Não foi possível registrar a sessão no banco:', e);
     }
   },
 
@@ -53,13 +52,12 @@ export const GerenciadorTelemetria = {
     if (!this.referenciaSessao) return;
     try {
       await updateDoc(this.referenciaSessao, {
-        completed_phases: this.fasesConcluidas,
-        total_errors: this.totalErros,
-        last_updated: serverTimestamp()
+        fases_concluidas: this.fasesConcluidas,
+        total_erros: this.totalErros,
+        ultima_atualizacao: serverTimestamp()
       });
-      console.log('✅ [Firebase] Métricas da sessão atualizadas.');
     } catch (e) {
-      console.error('❌ [Firebase] Erro ao atualizar sessão:', e);
+      console.warn('Não foi possível atualizar métricas da sessão:', e);
     }
   },
 
@@ -68,26 +66,23 @@ export const GerenciadorTelemetria = {
     if (!this.idUsuario) {
       this.idUsuario = obterOuCriarIdJogador();
     }
-    if (!this.idSessao) {
-      this.idSessao = 'sess_' + Date.now();
-    }
+    if (!this.idSessao) return;
 
     try {
-      const docRef = await addDoc(collection(bancoDados, 'telemetry_events'), {
-        user_id: this.idUsuario,
-        session_id: this.idSessao,
-        timestamp: serverTimestamp(),
-        event_type: tipoEvento,
+      await addDoc(collection(bancoDados, 'telemetry_events'), {
+        id_usuario: this.idUsuario,
+        id_sessao: this.idSessao,
+        horario_registro: serverTimestamp(),
+        tipo_evento: tipoEvento,
         ...dados
       });
-      console.log(`✅ [Firebase] Evento gravado: ${tipoEvento} (Doc: ${docRef.id})`);
     } catch (e) {
-      console.error(`❌ [Firebase] Erro ao gravar evento ${tipoEvento}:`, e);
+      console.warn('Não foi possível gravar o evento no banco:', e);
     }
   },
 
   // Métodos com alias para manter compatibilidade
-  initSession(modo, direcao, grade, vel) { return this.iniciarSessao(modo, direcao, grade, vel); },
+  initSession(modo, direcao, grade, vel, mov) { return this.iniciarSessao(modo, direcao, grade, vel, mov); },
   incrementCompletedPhases() { return this.incrementarFases(); },
   incrementErrors() { return this.incrementarErros(); },
   trackEvent(tipo, dados) { return this.registrarEvento(tipo, dados); }

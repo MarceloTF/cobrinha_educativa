@@ -98,8 +98,28 @@ body {
 }
 
 .title-icon {
-  font-size: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   animation: gentle-bounce 2s infinite ease-in-out;
+}
+
+.snake-logo-svg {
+  display: inline-block;
+  vertical-align: middle;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+  object-fit: contain;
+}
+
+.header-snake {
+  width: 28px;
+  height: 28px;
+}
+
+.menu-snake {
+  width: clamp(48px, 9vh, 64px);
+  height: clamp(48px, 9vh, 64px);
+  margin-bottom: 2px;
 }
 
 .header-controls {
@@ -120,6 +140,14 @@ body {
   font-size: 1.05rem;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.btn-icon img,
+.btn-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  pointer-events: none;
 }
 
 .btn-icon:hover {
@@ -343,8 +371,9 @@ body {
 }
 
 .menu-logo {
-  font-size: clamp(1.8rem, 3.8vh, 2.4rem);
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 2px;
   line-height: 1;
   animation: gentle-bounce 2s infinite ease;
@@ -490,6 +519,30 @@ body {
 }
 .mode-options .choice-title {
   color: #334155;
+}
+
+.mode-movement-manual {
+  background: #faf5ff;
+  border-color: #d8b4fe;
+}
+.mode-movement-manual:hover {
+  background: #f3e8ff;
+  border-color: #a855f7;
+}
+.mode-movement-manual .choice-title {
+  color: #7e22ce;
+}
+
+.mode-movement-auto {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.mode-movement-auto:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+.mode-movement-auto .choice-title {
+  color: #1d4ed8;
 }
 
 .mode-save-options {
@@ -1093,8 +1146,11 @@ body.fullscreen-active .game-wrapper {
     margin-bottom: 4px;
   }
   .menu-logo {
-    font-size: 1.5rem;
     margin-bottom: 0;
+  }
+  .menu-snake {
+    width: 34px;
+    height: 34px;
   }
   .menu-title {
     font-size: 1.05rem;
