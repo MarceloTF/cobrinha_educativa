@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/assets/images/logo-cobrinha.svg" width="128" height="128" alt="Cobrinha Educativa Logo" />
+  <img src="./assets/images/logo-cobrinha.svg" width="128" height="128" alt="Cobrinha Educativa Logo" />
 </p>
 
 <h1 align="center">Cobrinha Educativa</h1>
