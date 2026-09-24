@@ -2040,8 +2040,8 @@ document.addEventListener('DOMContentLoaded', () => {
       iniciarAudio();
       somHabilitado = !somHabilitado;
       btnSound.innerHTML = somHabilitado
-        ? '<img src="/assets/icons/som-ativo.svg" alt="Som Ativo" width="18" height="18" />'
-        : '<img src="/assets/icons/som-mudo.svg" alt="Som Mudo" width="18" height="18" />';
+        ? '<img src="./assets/icons/som-ativo.svg" alt="Som Ativo" width="18" height="18" />'
+        : '<img src="./assets/icons/som-mudo.svg" alt="Som Mudo" width="18" height="18" />';
     });
   }
 
